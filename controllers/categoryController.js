@@ -11,32 +11,37 @@ export const deleteCategoryController = async (req, res) => {
             port: 5432 // Default PostgreSQL port
         });
         pool.connect()
-        const { categoryName } = req.body
+        const { user_id, category_name } = req.body
 
-        if (!categoryName) {
-            return res.send({ message: 'category Name is Required' })
+        if (!user_id) {
+            return res.send({ message: 'User ID is Required' })
+        }
+        if (!category_name) {
+            return res.send({ message: 'Category Name is Required' })
         }
 
         const deleteCategoryQuery = `
         DELETE FROM "category"
-        WHERE category_name=${categoryName}
+        WHERE category_id=$1
         `;
         const checkCategoryQuery = `
-        SELECT * FROM "category" 
-        WHERE category_name=${categoryName}
+        SELECT category_id FROM "category" 
+        WHERE category_name=$1 AND
+        user_id=$2
         ;
         `;
         //check for existing category
-        const existingCategory = await pool.query(checkCategoryQuery)
+        const existingCategory = await pool.query(checkCategoryQuery, [category_name, user_id])
 
-        if (existingUser != null) {
+        if (existingCategory.rows.length == 0) {
             return res.status(200).send({
                 success: false,
                 message: 'Category Do not exist'
             })
         }
         else {
-            const user = await pool.query(deleteCategoryQuery)
+            const categoryId = existingCategory.rows[0].category_id
+            const category = await pool.query(deleteCategoryQuery, [categoryId])
             //send the response
             return res.status(200).send({
                 success: true,
@@ -67,44 +72,48 @@ export const createCategoryController = async (req, res) => {
             port: 5432 // Default PostgreSQL port
         });
         pool.connect()
-        const { name, email, password } = req.body
-        if (!name) {
-            return res.send({ message: 'Name is required' })
+        const { category_name, category_limit, user_id } = req.body
+
+        if (!category_name) {
+            return res.send({ message: 'Category Name is required' })
         }
-        if (!email) {
-            return res.send({ message: 'Email is required' })
+        if (!category_limit) {
+            return res.send({ message: 'Category Limit is required' })
         }
-        if (!password) {
-            return res.send({ message: 'password is required' })
+        if (!user_id) {
+            return res.send({ message: 'user Id  is required' })
         }
 
-        const registerQuery = `
-        INSERT INTO "user" (
-            ${name},
-            ${email},
-            ${password},
-        );
+        const createCategoryQuery = `
+        INSERT INTO "category" ("category_name","category_limit","user_id")VALUES(
+            $1,
+            $2,
+            $3
+        )  
+        RETURNING "category_id";
         `;
-        const checkUserQuery = `
-        SELECT * FROM "user" 
-        WHERE user_email=${email}
+        const checkCategoryQuery = `
+        SELECT * FROM "category" 
+        WHERE category_name=$1
         ;
         `;
         //check for existing user
-        const existingUser = await pool.query(checkUserQuery)
+        const existingCategory = await pool.query(checkCategoryQuery, [category_name])
 
-        if (existingUser != null) {
+        if (existingCategory.rows.length > 0) {
             return res.status(200).send({
                 success: false,
-                message: 'Already a user Please Login'
+                message: 'Category Already Exists'
             })
         }
         else {
-            const user = await pool.query(registerQuery)
+            const categoryDetails = await pool.query(createCategoryQuery, [category_name, category_limit, user_id])
             //send the response
+            const finalCategoryID = categoryDetails.rows[0].category_id
             res.status(200).send({
                 success: true,
-                message: 'User is Registerd successfully'
+                message: 'Category Created successfully',
+                finalCategoryID
             })
         }//save the user
 

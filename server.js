@@ -41,9 +41,9 @@ app.listen(port, () => {
 const createUserTableQuery = `
   CREATE TABLE IF NOT EXISTS "user" (
     user_id SERIAL PRIMARY KEY,
-    user_name VARCHAR(255),
-    user_email VARCHAR(100) UNIQUE NOT NULL,
-    user_password VARCHAR(100) NOT NULL,
+    user_name VARCHAR,
+    user_email VARCHAR UNIQUE NOT NULL,
+    user_password VARCHAR NOT NULL,
     balance_amount NUMERIC(10,2)
   );
 `;
@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS category (
   user_id INT,
   FOREIGN KEY (user_id) REFERENCES "user" (user_id)
   ON DELETE CASCADE
+
 );
 
 `;

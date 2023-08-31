@@ -1,6 +1,7 @@
 import pg from 'pg'
+import pgPromise from 'pg-promise'
 export const registerController = async (req, res) => {
-
+    const pgp = pgPromise()
     try {
         const Pool = pg.Pool;
         const pool = new Pool({
@@ -10,26 +11,29 @@ export const registerController = async (req, res) => {
             database: 'fundManagerdb',
             port: 5432 // Default PostgreSQL port
         });
-        pool.connect()
-        const { name, email, password } = req.body
-        if (!name) {
+        const client = await pool.connect()
+        if (client) { console.log("Connection established") }
+        const { user_name, user_email, user_password } = req.body
+        if (!user_name) {
             return res.send({ message: 'Name is required' })
         }
-        if (!email) {
+        if (!user_email) {
             return res.send({ message: 'Email is required' })
         }
-        if (!password) {
+        if (!user_password) {
             return res.send({ message: 'password is required' })
         }
-        const values = [name, email, password]
+        const values = [user_name, user_email, user_password]
 
         const registerQuery = `
-        INSERT INTO "user" VALUES(
+        INSERT INTO "user" 
+        ("user_name","user_email","user_password")
+        VALUES(
             $1,
             $2,
             $3
  
-        );
+        )  RETURNING "user_id";
         `;
         const checkUserQuery = `
         SELECT * FROM "user" 
@@ -38,10 +42,10 @@ export const registerController = async (req, res) => {
         `;
 
         //check for existing user
-        const existingUser = await pool.query(checkUserQuery, [email])
-
-        if (existingUser != null) {
-            return res.status(200).send({
+        const existingUser = await pool.query(checkUserQuery, [user_email])
+        if (existingUser.rows.length == 0) { console.log("working") }
+        if (existingUser.rows.length > 0) {
+            res.status(200).send({
                 success: false,
                 message: 'Already a user Please Login'
             })
@@ -49,7 +53,8 @@ export const registerController = async (req, res) => {
         else {
             const user = await pool.query(registerQuery, values)
             //send the response
-            return res.status(200).send({
+            const finalUserID = user.rows[0].user_id
+            res.status(200).send({
                 success: true,
                 message: 'User is Registerd successfully'
             })
@@ -78,12 +83,12 @@ export const loginController = async (req, res) => {
             port: 5432 // Default PostgreSQL port
         });
         pool.connect()
-        const { email, password } = req.body
+        const { user_email, user_password } = req.body
 
-        if (!email) {
+        if (!user_email) {
             return res.send({ message: 'Email is required' })
         }
-        if (!password) {
+        if (!user_password) {
             return res.send({ message: 'password is required' })
         }
 
@@ -100,11 +105,11 @@ export const loginController = async (req, res) => {
         ;
         `;
         //check for existing user
-        const existingUser = await pool.query(checkUserQuery, [email])
+        const existingUser = await pool.query(checkUserQuery, [user_email])
 
-        if (existingUser != null) {
-            const correctUser = await pool.query(correctUserQuery, [email, password])
-            if (correctUser != null) {
+        if (existingUser.rows.length > 0) {
+            const correctUser = await pool.query(correctUserQuery, [user_email, user_password])
+            if (correctUser.rows.length > 0) {
                 return res.status(200).send({
                     success: true,
                     message: 'Login Successfull'
@@ -144,26 +149,27 @@ export const deleteUserController = async (req, res) => {
             port: 5432 // Default PostgreSQL port
         });
         pool.connect()
-        const { email } = req.body
-        if (!email) {
+        const { user_email } = req.body
+        if (!user_email) {
             return res.send({ message: 'Email is required' })
         }
         const deleteUserQuery = `
         DELETE FROM "user" 
-        WHERE user_email=${email};
+        WHERE user_email=$1;
         `;
         const checkUserQuery = `
         SELECT * FROM "user" 
-        WHERE user_email=${email}
+        WHERE user_email=$1
         ;
         `;
         //check for existing user
-        const existingUser = await pool.query(checkUserQuery)
+        const existingUser = await pool.query(checkUserQuery, [user_email])
 
-        if (existingUser != null) {
+        if (existingUser.rows.length > 0) {
+            await pool.query(deleteUserQuery, [user_email])
             return res.status(200).send({
                 success: true,
-                message: 'User deleted Successfully'
+                message: 'User Deleted Successfully'
             })
         }
         else {

@@ -3,6 +3,6 @@ import { createCategoryController, deleteCategoryController } from '../controlle
 
 const router = express.Router()
 router.post('/createCategory', createCategoryController)
-//LOGIN/post
+
 router.post('/deleteCategory', deleteCategoryController)
 export default router
